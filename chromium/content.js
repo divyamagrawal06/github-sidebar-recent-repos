@@ -22,18 +22,19 @@
     )
   );
 
-  function isRepoHref(href) {
-    return /^\/[^/]+\/[^/]+\/?$/.test(href);
+  function stripQueryAndHashFromPath(href) {
+    if (!href) return href;
+    const t = String(href);
+    const i = t.search(/[?#]/);
+    return i === -1 ? t : t.slice(0, i);
   }
 
-  function normalizeRepoFromHref(href) {
-    const cleanedHref = href.replace(/\/$/, "");
-    const parts = cleanedHref.split("/").filter(Boolean);
-    if (parts.length < 2) return null;
-    return {
-      fullName: `${parts[0]}/${parts[1]}`,
-      href: `/${parts[0]}/${parts[1]}`
-    };
+  function repoFromRelativePath(href) {
+    if (!href) return null;
+    const t = String(href).trim();
+    if (t === "" || !t.startsWith("/")) return null;
+    const pathOnly = stripQueryAndHashFromPath(t);
+    return parseRepoFromPathname(pathOnly);
   }
 
   function parseRepoFromPathname(pathname) {
@@ -53,7 +54,7 @@
     const t = String(href).trim();
     if (t === "" || t.startsWith("#") || /^(javascript|mailto|data|blob):/i.test(t)) return null;
     if (t.startsWith("/")) {
-      return parseRepoFromPathname(t) || (isRepoHref(t) ? normalizeRepoFromHref(t) : null);
+      return repoFromRelativePath(t);
     }
     try {
       const u = new URL(t);
@@ -96,14 +97,23 @@
     return new Promise((resolve) => {
       ext.storage.local.get([STORAGE_KEY], (result) => {
         const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
-        const valid = value.filter(
-          (item) =>
-            item &&
-            typeof item.fullName === "string" &&
-            typeof item.href === "string" &&
-            typeof item.lastSeenAt === "number"
-        );
-        resolve(clampStored(valid));
+        const valid = value.filter((item) => {
+          if (
+            !item ||
+            typeof item.fullName !== "string" ||
+            typeof item.href !== "string" ||
+            typeof item.lastSeenAt !== "number"
+          ) {
+            return false;
+          }
+          const p = repoFromRelativePath(item.href);
+          return p !== null && p.fullName === item.fullName;
+        });
+        const next = clampStored(valid);
+        if (value.length !== next.length) {
+          ext.storage.local.set({ [STORAGE_KEY]: next });
+        }
+        resolve(next);
       });
     });
   }
@@ -389,8 +399,7 @@
     const seen = new Set();
     links.forEach((link) => {
       const href = link.getAttribute("href") || "";
-      if (!isRepoHref(href)) return;
-      const repo = normalizeRepoFromHref(href);
+      const repo = repoFromRelativePath(href);
       if (!repo || seen.has(repo.fullName)) return;
       seen.add(repo.fullName);
       repos.push(repo);

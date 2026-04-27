@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GitHub Sidebar Recent Repos",
   "description": "Adds a Recent repositories section above Top repositories on GitHub.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Divyam Agrawal",
   "permissions": [
     "storage"
