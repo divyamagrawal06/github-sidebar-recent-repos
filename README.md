@@ -4,7 +4,7 @@ Chrome extension that adds a recent repositories section to GitHub's left sideba
 
 ## Install from GitHub Releases
 
-1. Go to this repository's [Releases](../../releases) page.
+1. Go to the [latest release](https://github.com/divyamagrawal06/github-sidebar-recent-repos/releases/tag/1.0.0).
 2. Download the latest release ZIP.
 3. Extract the ZIP to a folder on your machine.
 4. Open `chrome://extensions`. (Or manage extensions in other browsers.)
