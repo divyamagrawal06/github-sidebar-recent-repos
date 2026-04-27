@@ -6,7 +6,7 @@ Chrome extension that adds a recent repositories section to GitHub's left sideba
 
 ### Chrome or any Chromium based browsers
 
-1. Go to the [latest release](https://github.com/divyamagrawal06/github-sidebar-recent-repos/releases/tag/1.0.1).
+1. Go to the [latest release](https://github.com/divyamagrawal06/github-sidebar-recent-repos/releases/tag/1.0.1-chromium).
 2. Download the latest release ZIP tagged **`-chromium`**.
 3. Unzip the **`-chromium`** release asset.
 4. Open `chrome://extensions` (or `edge://extensions`, etc.).
@@ -18,7 +18,7 @@ Chrome extension that adds a recent repositories section to GitHub's left sideba
 
 Note: This is not permanent, firefox extensions require being signed with firefox to be permanent. You will have to do this every time you open firefox, which isn't ideal.
 
-1. Go to the [latest release](https://github.com/divyamagrawal06/github-sidebar-recent-repos/releases/tag/1.0.1).
+1. Go to the [latest release](https://github.com/divyamagrawal06/github-sidebar-recent-repos/releases/tag/1.0.1-firefox).
 2. Download the latest release ZIP tagged **`-firefox`**.
 3. Open `about:debugging#/runtime/this-firefox`.
 4. Under **Temporary Extensions**, click **Load Temporary Add-on…** and select the zip file.
