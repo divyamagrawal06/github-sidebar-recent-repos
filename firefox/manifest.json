@@ -4,6 +4,12 @@
   "description": "Adds a Recent repositories section above Top repositories on GitHub.",
   "version": "1.0.0",
   "author": "Divyam Agrawal",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{3c1f2b0a-9d8e-4f7a-8b6c-1a2b3c4d5e6f}",
+      "strict_min_version": "115.0"
+    }
+  },
   "permissions": [
     "storage"
   ],

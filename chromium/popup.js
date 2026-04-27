@@ -1,3 +1,5 @@
+const ext = globalThis.browser ?? globalThis.chrome;
+
 const DISPLAY_COUNT_KEY = "recentReposDisplayCount";
 const DISPLAY_MIN = 1;
 const DISPLAY_MAX = 50;
@@ -14,14 +16,14 @@ function init() {
   const saveBtn = document.getElementById("save");
   const status = document.getElementById("status");
 
-  chrome.storage.local.get([DISPLAY_COUNT_KEY], (result) => {
+  ext.storage.local.get([DISPLAY_COUNT_KEY], (result) => {
     input.value = String(clampCount(result[DISPLAY_COUNT_KEY]));
   });
 
   saveBtn.addEventListener("click", () => {
     const next = clampCount(input.value);
     input.value = String(next);
-    chrome.storage.local.set({ [DISPLAY_COUNT_KEY]: next }, () => {
+    ext.storage.local.set({ [DISPLAY_COUNT_KEY]: next }, () => {
       status.textContent = "Saved.";
       status.classList.add("is-success");
       window.setTimeout(() => {

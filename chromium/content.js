@@ -1,4 +1,5 @@
 (() => {
+  const ext = globalThis.browser ?? globalThis.chrome;
   const STORAGE_KEY = "recentRepos";
   const DISPLAY_COUNT_KEY = "recentReposDisplayCount";
   const MAX_STORED = 50;
@@ -73,7 +74,7 @@
 
   function readDisplayCount() {
     return new Promise((resolve) => {
-      chrome.storage.local.get([DISPLAY_COUNT_KEY], (result) => {
+      ext.storage.local.get([DISPLAY_COUNT_KEY], (result) => {
         const raw = result[DISPLAY_COUNT_KEY];
         let n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
         if (!Number.isFinite(n)) n = DISPLAY_DEFAULT;
@@ -93,7 +94,7 @@
 
   function readAllStoredRecentRepos() {
     return new Promise((resolve) => {
-      chrome.storage.local.get([STORAGE_KEY], (result) => {
+      ext.storage.local.get([STORAGE_KEY], (result) => {
         const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
         const valid = value.filter(
           (item) =>
@@ -109,7 +110,7 @@
 
   function writeRecentRepos(items) {
     return new Promise((resolve) => {
-      chrome.storage.local.set({ [STORAGE_KEY]: clampStored(items) }, () => resolve());
+      ext.storage.local.set({ [STORAGE_KEY]: clampStored(items) }, () => resolve());
     });
   }
 
@@ -462,7 +463,7 @@
 
   function boot() {
     attachRepoClickTracking();
-    chrome.storage.onChanged.addListener((changes, area) => {
+    ext.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes[STORAGE_KEY] || changes[DISPLAY_COUNT_KEY])) {
         lastRenderedHash = "";
         scheduleEnhance();

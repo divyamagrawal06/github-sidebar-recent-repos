@@ -1,0 +1,236 @@
+:root {
+  color-scheme: light dark;
+  --color-canvas-default: #ffffff;
+  --color-canvas-subtle: #f6f8fa;
+  --color-border-default: #d0d7de;
+  --color-border-muted: hsla(210, 18%, 87%, 1);
+  --color-fg-default: #1f2328;
+  --color-fg-muted: #656d76;
+  --color-btn-text: #24292f;
+  --color-btn-bg: #f6f8fa;
+  --color-btn-border: rgba(27, 31, 36, 0.15);
+  --color-btn-hover-bg: #f3f4f6;
+  --color-btn-primary-bg: #2da44e;
+  --color-btn-primary-hover-bg: #2c9740;
+  --color-btn-primary-text: #ffffff;
+  --color-shadow-medium: 0 3px 6px rgba(140, 149, 159, 0.15);
+  --radius-medium: 6px;
+  --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas-default: #0d1117;
+    --color-canvas-subtle: #161b22;
+    --color-border-default: #30363d;
+    --color-border-muted: #21262d;
+    --color-fg-default: #e6edf3;
+    --color-fg-muted: #8b949e;
+    --color-btn-text: #c9d1d9;
+    --color-btn-bg: #21262d;
+    --color-btn-border: #30363d;
+    --color-btn-hover-bg: #30363d;
+    --color-btn-primary-bg: #238636;
+    --color-btn-primary-hover-bg: #2ea043;
+    --color-btn-primary-text: #ffffff;
+    --color-shadow-medium: 0 3px 6px rgba(1, 4, 9, 0.85);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+  font-family: var(--font-stack);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-fg-default);
+  background: var(--color-canvas-default);
+}
+
+.popup-root {
+  padding: 12px;
+}
+
+.Box {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-medium);
+  background: var(--color-canvas-default);
+  box-shadow: var(--color-shadow-medium);
+}
+
+.Box-header {
+  padding: 12px 16px;
+  background: var(--color-canvas-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+  border-radius: var(--radius-medium) var(--radius-medium) 0 0;
+}
+
+.Box-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-fg-default);
+}
+
+.Box-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+}
+
+.Box-body {
+  padding: 12px 16px;
+}
+
+.Box-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.FormLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-fg-default);
+}
+
+.FormControl-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.FormControl-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-fg-default);
+  background-color: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-medium);
+  outline: none;
+}
+
+.FormControl-input:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  .FormControl-input:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.4);
+  }
+}
+
+.FormControl-suffix {
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+}
+
+.FormControl-hint {
+  margin: 8px 0 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+}
+
+.FormControl-hint.is-success {
+  color: var(--color-btn-primary-bg);
+}
+
+.github-star-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  font-family: var(--font-stack);
+  color: var(--color-btn-text);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background-color: var(--color-btn-bg);
+  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04), var(--color-btn-bg) 0 0 0 0;
+  transition: background-color 80ms, border-color 80ms;
+}
+
+.github-star-btn:hover {
+  background-color: var(--color-btn-hover-bg);
+}
+
+.github-star-btn:active {
+  background-color: var(--color-btn-hover-bg);
+}
+
+.github-star-btn:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .github-star-btn:focus-visible {
+    outline-color: #58a6ff;
+  }
+}
+
+.d-inline {
+  display: inline;
+}
+
+.d-inline-block {
+  display: inline-block;
+}
+
+.github-star-octicon {
+  margin-right: 8px;
+  vertical-align: text-bottom;
+}
+
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  font-family: inherit;
+  border-radius: var(--radius-medium);
+  border: 1px solid var(--color-btn-border);
+  cursor: pointer;
+}
+
+.btn-primary {
+  color: var(--color-btn-primary-text);
+  background-color: var(--color-btn-primary-bg);
+  border-color: rgba(27, 31, 36, 0.15);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-btn-primary-hover-bg);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
