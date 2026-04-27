@@ -1,0 +1,9 @@
+.recent-repos-section {
+  margin-bottom: 16px;
+}
+
+.recent-repos-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
