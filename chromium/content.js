@@ -327,7 +327,7 @@
     if (!parent) return null;
     let section = document.getElementById(SECTION_ID);
     if (!section) {
-      section = buildRecentSectionFromTop(topReposSection);
+      section = buildRecentSectionFromTop(); // 👈 assign it properly
       topReposSection.insertAdjacentElement("beforebegin", section);
       return section;
     }
@@ -430,7 +430,7 @@
 
   console.log("🔥 enhanceSidebar running");
   async function enhanceSidebar() {
-    if (document.getElementById(SECTION_ID) && lastRenderedHash) return;
+    // remove this early return completely
     const topReposSection = findTopReposSectionInDashboard();
     console.log("TopReposSection:", topReposSection);
     if (!topReposSection) {
