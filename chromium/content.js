@@ -25,7 +25,8 @@
   function getSidebarUniversal(root = document) {
     const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
 
-    const asides = Array.from(root.querySelectorAll("aside"));
+    const asides = Array.from(root.querySelectorAll("aside"))
+      .filter(el => !el.querySelector(IGNORE_SELECTOR));
     let bestSidebar = null;
     let bestScore = 0;
 
@@ -120,26 +121,44 @@
 
   function readAllStoredRecentRepos() {
     return new Promise((resolve) => {
-      ext.storage.local.get([STORAGE_KEY], (result) => {
-        const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
-        const valid = value.filter((item) => {
-          if (
-            !item ||
-            typeof item.fullName !== "string" ||
-            typeof item.href !== "string" ||
-            typeof item.lastSeenAt !== "number"
-          ) {
-            return false;
+      try {
+        ext.storage.local.get([STORAGE_KEY], (result) => {
+          try {
+            const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+
+            const valid = value.filter((item) => {
+              if (
+                !item ||
+                typeof item.fullName !== "string" ||
+                typeof item.href !== "string" ||
+                typeof item.lastSeenAt !== "number"
+              ) {
+                return false;
+              }
+              const p = repoFromRelativePath(item.href);
+              return p !== null && p.fullName === item.fullName;
+            });
+
+            const next = clampStored(valid);
+
+            if (value.length !== next.length) {
+              try {
+                ext.storage.local.set({ [STORAGE_KEY]: next });
+              } catch (e) {
+                console.warn("⚠️ Failed to write storage (context gone):", e);
+              }
+            }
+
+            resolve(next);
+          } catch (innerErr) {
+            console.warn("⚠️ Processing failed:", innerErr);
+            resolve([]); // fail safe
           }
-          const p = repoFromRelativePath(item.href);
-          return p !== null && p.fullName === item.fullName;
         });
-        const next = clampStored(valid);
-        if (value.length !== next.length) {
-          ext.storage.local.set({ [STORAGE_KEY]: next });
-        }
-        resolve(next);
-      });
+      } catch (err) {
+        console.warn("⚠️ Storage read failed (extension reloaded):", err);
+        resolve([]); // fail safe
+      }
     });
   }
 
@@ -153,40 +172,23 @@
     return repos.map((repo) => `${repo.fullName}:${repo.lastSeenAt}`).join("|");
   }
 
-  function buildRecentSectionFromTop(topReposSection) {
-    const wrapper = topReposSection.cloneNode(true);
+  function buildRecentSectionFromTop() {
+    const wrapper = document.createElement("div");
     wrapper.id = SECTION_ID;
     wrapper.classList.add("recent-repos-section");
 
-    const heading = Array.from(
-      wrapper.querySelectorAll("h2, h3, h4, [data-component='NavList.GroupHeading']")
-    ).find((node) => /top repositories/i.test(node.textContent || ""));
-    if (heading) {
-      const labelDiv = heading.querySelector("div");
-      if (labelDiv) {
-        labelDiv.textContent = "Recent repositories";
-      } else {
-        heading.textContent = "Recent repositories";
-      }
-      heading.querySelector("button")?.remove();
-      const tooltip = heading.querySelector("[class*='Tooltip'], [popover]");
-      if (tooltip) tooltip.remove();
-    }
+    const heading = document.createElement("h3");
+    heading.textContent = "Recent repositories";
+    heading.style.marginBottom = "6px";
 
-    const repoList = findRepoListElement(wrapper);
-    if (repoList) {
-      repoList.classList.add("recent-repos-list");
-      repoList.setAttribute("aria-label", "Recent repositories");
-      Array.from(repoList.querySelectorAll("li")).forEach((li) => {
-        if (
-          li.querySelector("a[href^='/']") ||
-          li.querySelector("[data-testid='dynamic-side-panel-items-show-more']")
-        ) {
-          li.remove();
-        }
-      });
-      applyRecentGroupHeadingLayout(repoList.querySelector("li[data-component='GroupHeadingWrap']"));
-    }
+    const list = document.createElement("ul");
+    list.classList.add("recent-repos-list");
+    list.style.listStyle = "none";
+    list.style.padding = "0";
+    list.style.margin = "0";
+
+    wrapper.appendChild(heading);
+    wrapper.appendChild(list);
 
     return wrapper;
   }
@@ -210,30 +212,6 @@
     }
     const lists = Array.from(sectionRoot.querySelectorAll("ul, ol"));
     return lists[lists.length - 1] || null;
-  }
-
-  function buildRecentHeadingItemFromTop(topReposSection) {
-    const topHeadingItem = topReposSection?.querySelector("li[data-component='GroupHeadingWrap']");
-    if (!topHeadingItem) return null;
-    const cloned = topHeadingItem.cloneNode(true);
-    applyRecentGroupHeadingLayout(cloned);
-    const topHeading = topHeadingItem.querySelector("[data-component='NavList.GroupHeading']");
-    const existingHeading = cloned.querySelector("[data-component='NavList.GroupHeading']");
-    const heading = document.createElement("h3");
-    heading.setAttribute("data-component", "NavList.GroupHeading");
-    heading.className = (topHeading?.className || existingHeading?.className || "").toString();
-    const labelDiv = document.createElement("div");
-    labelDiv.textContent = "Recent repositories";
-    heading.appendChild(labelDiv);
-    if (existingHeading) {
-      existingHeading.replaceWith(heading);
-    } else {
-      cloned.prepend(heading);
-    }
-    cloned.querySelector("button")?.remove();
-    const tooltip = cloned.querySelector("[class*='Tooltip'], [popover]");
-    if (tooltip) tooltip.remove();
-    return cloned;
   }
 
   function buildAvatarUrl(owner) {
@@ -273,78 +251,32 @@
     }
   }
 
-  function createItemFromTemplate(sampleItem, repo, sampleLinkClass) {
-    if (sampleItem) {
-      const cloned = sampleItem.cloneNode(true);
-      updateTemplateItem(cloned, repo);
-      return cloned;
-    }
-    const item = document.createElement("li");
-    item.className = "prc-ActionList-ActionListItem-So4vC";
-    const link = document.createElement("a");
-    link.className = sampleLinkClass || "prc-ActionList-ActionListContent-KBb8- prc-Link-Link-9ZwDx";
-    link.href = repo.href;
-    link.setAttribute("data-size", "medium");
-    link.style.setProperty("--subitem-depth", "0");
-    const spacer = document.createElement("span");
-    spacer.className = "prc-ActionList-Spacer-4tR2m";
-    const leading = document.createElement("span");
-    leading.className = "prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS";
-    const avatar = document.createElement("img");
-    const [owner] = repo.fullName.split("/");
-    avatar.setAttribute("data-component", "Avatar");
-    avatar.className = "prc-Avatar-Avatar-0xaUi";
-    avatar.alt = `@${owner}`;
-    avatar.width = 16;
-    avatar.height = 16;
-    avatar.src = buildAvatarUrl(owner);
-    leading.appendChild(avatar);
-    const sub = document.createElement("span");
-    sub.className = "prc-ActionList-ActionListSubContent-gKsFp";
-    sub.setAttribute("data-component", "ActionList.Item--DividerContainer");
-    const label = document.createElement("span");
-    label.className = "prc-ActionList-ItemLabel-81ohH";
-    label.textContent = repo.fullName;
-    sub.appendChild(label);
-    link.appendChild(spacer);
-    link.appendChild(leading);
-    link.appendChild(sub);
-    item.appendChild(link);
-    return item;
-  }
-
   function renderRecentList(container, repos, topReposSection, displayCount) {
     const list = container.querySelector(LIST_SELECTOR) || findRepoListElement(container);
     if (!list) return;
+    list.innerHTML = "";
     const reposHash = `${displayCount}|${hashRepos(repos)}`;
     if (reposHash === lastRenderedHash) return;
     lastRenderedHash = reposHash;
-    let headingItem = list.querySelector("li[data-component='GroupHeadingWrap']");
-    if (!headingItem) {
-      headingItem = buildRecentHeadingItemFromTop(topReposSection);
-      if (headingItem) list.prepend(headingItem);
-    }
-    applyRecentGroupHeadingLayout(headingItem);
-    const sampleAnchor = topReposSection?.querySelector("a[href^='/']");
-    const sampleItem = sampleAnchor ? sampleAnchor.closest("li") : null;
-    const sampleLink = sampleItem?.querySelector("a");
-    Array.from(list.querySelectorAll("li")).forEach((li) => {
-      const hasRepoLink = !!li.querySelector("a[href^='/']");
-      const isShowMoreControl = !!li.querySelector("[data-testid='dynamic-side-panel-items-show-more']");
-      const isHeading = li.getAttribute("data-component") === "GroupHeadingWrap";
-      if ((hasRepoLink || isShowMoreControl) && !isHeading) {
-        li.remove();
-      }
-    });
     if (!repos.length) {
       const empty = document.createElement("li");
-      empty.className = sampleItem?.className || "mt-2";
       empty.textContent = "No repositories visited yet.";
+      empty.style.opacity = "0.7";
+      empty.style.padding = "4px 0";
       list.appendChild(empty);
       return;
     }
     repos.forEach((repo) => {
-      list.appendChild(createItemFromTemplate(sampleItem, repo, sampleLink?.className));
+      const li = document.createElement("li");
+
+      const a = document.createElement("a");
+      a.href = repo.href;
+      a.textContent = repo.fullName;
+      a.style.display = "block";
+      a.style.padding = "4px 0";
+
+      li.appendChild(a);
+      list.appendChild(li);
     });
   }
 
@@ -359,6 +291,7 @@
     let bestScore = 0;
 
     for (const list of lists) {
+      if (list.closest("#recent-repos-section")) continue;
       const repoLinks = Array.from(list.querySelectorAll('a[href^="/"]')).filter((link) =>
         isRepoHref(link.getAttribute("href"))
       );
@@ -386,17 +319,20 @@
   }
 
   function ensureRecentSection(topReposSection) {
+    if (document.getElementById(SECTION_ID)) {
+      return document.getElementById(SECTION_ID);
+    }
     if (!topReposSection) return null;
     const parent = topReposSection.parentElement;
     if (!parent) return null;
     let section = document.getElementById(SECTION_ID);
     if (!section) {
       section = buildRecentSectionFromTop(topReposSection);
-      parent.insertBefore(section, topReposSection);
+      topReposSection.insertAdjacentElement("beforebegin", section);
       return section;
     }
     if (section.parentElement !== parent || section.nextElementSibling !== topReposSection) {
-      parent.insertBefore(section, topReposSection);
+      topReposSection.insertAdjacentElement("beforebegin", section);
     }
     return section;
   }
@@ -494,6 +430,7 @@
 
   console.log("🔥 enhanceSidebar running");
   async function enhanceSidebar() {
+    if (document.getElementById(SECTION_ID) && lastRenderedHash) return;
     const topReposSection = findTopReposSectionInDashboard();
     console.log("TopReposSection:", topReposSection);
     if (!topReposSection) {
