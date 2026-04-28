@@ -177,7 +177,15 @@
     wrapper.id = SECTION_ID;
     wrapper.classList.add("recent-repos-section");
 
-    const heading = document.createElement("h3");
+    const heading = document.createElement("div");
+    heading.textContent = "Recent repositories";
+
+    heading.style.fontSize = "12px";
+    heading.style.fontWeight = "600";
+    heading.style.color = "#8b949e"; // GitHub gray
+    heading.style.textTransform = "uppercase";
+    heading.style.margin = "8px 0";
+
     heading.textContent = "Recent repositories";
     heading.style.marginBottom = "6px";
 
@@ -186,7 +194,8 @@
     list.style.listStyle = "none";
     list.style.padding = "0";
     list.style.margin = "0";
-
+    wrapper.style.padding = "8px 12px";
+    wrapper.style.marginBottom = "16px";
     wrapper.appendChild(heading);
     wrapper.appendChild(list);
 
@@ -260,9 +269,10 @@
     lastRenderedHash = reposHash;
     if (!repos.length) {
       const empty = document.createElement("li");
-      empty.textContent = "No repositories visited yet.";
-      empty.style.opacity = "0.7";
-      empty.style.padding = "4px 0";
+      empty.textContent = "No recent repos yet";
+      empty.style.color = "#8b949e";
+      empty.style.fontSize = "12px";
+      empty.style.padding = "4px 8px";
       list.appendChild(empty);
       return;
     }
@@ -271,10 +281,38 @@
 
       const a = document.createElement("a");
       a.href = repo.href;
-      a.textContent = repo.fullName;
-      a.style.display = "block";
-      a.style.padding = "4px 0";
 
+      a.style.display = "flex";
+      a.style.alignItems = "center";
+      a.style.gap = "8px";
+      a.style.padding = "6px 8px";
+      a.style.borderRadius = "6px";
+      a.style.textDecoration = "none";
+      a.style.color = "#c9d1d9"; // GitHub text
+
+      // 🔥 Avatar
+      const img = document.createElement("img");
+      const owner = repo.fullName.split("/")[0];
+      img.src = `https://github.com/${owner}.png?size=40`;
+      img.width = 16;
+      img.height = 16;
+      img.style.borderRadius = "50%";
+
+      // 🔥 Repo name
+      const span = document.createElement("span");
+      span.textContent = repo.fullName;
+      span.style.fontSize = "14px";
+
+      // ✨ Hover effect
+      a.addEventListener("mouseenter", () => {
+        a.style.background = "#21262d";
+      });
+      a.addEventListener("mouseleave", () => {
+        a.style.background = "transparent";
+      });
+
+      a.appendChild(img);
+      a.appendChild(span);
       li.appendChild(a);
       list.appendChild(li);
     });
