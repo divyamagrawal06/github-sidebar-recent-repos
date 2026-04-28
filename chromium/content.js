@@ -177,25 +177,23 @@
     wrapper.id = SECTION_ID;
     wrapper.classList.add("recent-repos-section");
 
+    // 🔹 Heading
     const heading = document.createElement("div");
     heading.textContent = "Recent repositories";
-
     heading.style.fontSize = "12px";
     heading.style.fontWeight = "600";
-    heading.style.color = "#8b949e"; // GitHub gray
+    heading.style.color = "#8b949e";
     heading.style.textTransform = "uppercase";
-    heading.style.margin = "8px 0";
+    heading.style.margin = "16px 8px 8px 8px";
 
-    heading.textContent = "Recent repositories";
-    heading.style.marginBottom = "6px";
-
+    // 🔹 List
     const list = document.createElement("ul");
     list.classList.add("recent-repos-list");
     list.style.listStyle = "none";
-    list.style.padding = "0";
+    list.style.padding = "0 8px";
     list.style.margin = "0";
-    wrapper.style.padding = "8px 12px";
-    wrapper.style.marginBottom = "16px";
+
+    // 🔹 Structure (ONLY ONCE)
     wrapper.appendChild(heading);
     wrapper.appendChild(list);
 
@@ -357,21 +355,21 @@
   }
 
   function ensureRecentSection(topReposSection) {
-    if (document.getElementById(SECTION_ID)) {
-      return document.getElementById(SECTION_ID);
-    }
     if (!topReposSection) return null;
+
+    // already exists → reuse
+    let section = document.getElementById(SECTION_ID);
+    if (section) return section;
+
+    // create fresh
+    section = buildRecentSectionFromTop();
+
     const parent = topReposSection.parentElement;
     if (!parent) return null;
-    let section = document.getElementById(SECTION_ID);
-    if (!section) {
-      section = buildRecentSectionFromTop(); // 👈 assign it properly
-      topReposSection.insertAdjacentElement("beforebegin", section);
-      return section;
-    }
-    if (section.parentElement !== parent || section.nextElementSibling !== topReposSection) {
-      topReposSection.insertAdjacentElement("beforebegin", section);
-    }
+
+    // ✅ insert EXACTLY below Top Repos
+    parent.insertBefore(section, topReposSection.nextSibling);
+
     return section;
   }
 
@@ -472,7 +470,7 @@
     const topReposSection = findTopReposSectionInDashboard();
     console.log("TopReposSection:", topReposSection);
     if (!topReposSection) {
-      console.log("Top section not ready yet...");
+      setTimeout(enhanceSidebar, 300);
       return;
     }
     const recentSection = ensureRecentSection(topReposSection);
@@ -506,6 +504,14 @@
   }
 
   function boot() {
+    const style = document.createElement("style");
+    style.textContent = `
+  .dashboard-sidebar .loading-context {
+    min-height: unset !important;
+    height: auto !important;
+  }
+`;
+    document.head.appendChild(style);
     attachRepoClickTracking();
     ext.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes[STORAGE_KEY] || changes[DISPLAY_COUNT_KEY])) {
