@@ -9,6 +9,7 @@
   const SECTION_ID = "recent-repos-section";
   const LIST_SELECTOR = ".recent-repos-list";
   const ENHANCE_DEBOUNCE_MS = 120;
+  const DASHBOARD_NAV_SELECTOR = "nav[data-testid='dashboard-repositories']";
   const IGNORE_SELECTOR = "#recent-repos-section";
   let observer = null;
   let clickTrackingAttached = false;
@@ -46,6 +47,10 @@
     }
 
     return bestSidebar;
+  }
+
+  function isNavLayout(topReposSection) {
+    return !!topReposSection?.closest(DASHBOARD_NAV_SELECTOR);
   }
 
   function stripQueryAndHashFromPath(href) {
@@ -172,7 +177,7 @@
     return repos.map((repo) => `${repo.fullName}:${repo.lastSeenAt}`).join("|");
   }
 
-  function buildRecentSectionFromTop() {
+  function buildRecentSectionFromTopSimple() {
     const wrapper = document.createElement("div");
     wrapper.id = SECTION_ID;
     wrapper.classList.add("recent-repos-section");
@@ -200,6 +205,52 @@
     return wrapper;
   }
 
+  function buildRecentSectionFromTopNav(topReposSection) {
+    if (!topReposSection) return null;
+    const wrapper = topReposSection.cloneNode(true);
+    wrapper.id = SECTION_ID;
+    wrapper.classList.add("recent-repos-section");
+
+    const heading = Array.from(
+      wrapper.querySelectorAll("h2, h3, h4, [data-component='NavList.GroupHeading']")
+    ).find((node) => /top repositories/i.test(node.textContent || ""));
+    if (heading) {
+      const labelDiv = heading.querySelector("div");
+      if (labelDiv) {
+        labelDiv.textContent = "Recent repositories";
+      } else {
+        heading.textContent = "Recent repositories";
+      }
+      heading.querySelector("button")?.remove();
+      const tooltip = heading.querySelector("[class*='Tooltip'], [popover]");
+      if (tooltip) tooltip.remove();
+    }
+
+    const repoList = findRepoListElement(wrapper);
+    if (repoList) {
+      repoList.classList.add("recent-repos-list");
+      repoList.setAttribute("aria-label", "Recent repositories");
+      Array.from(repoList.querySelectorAll("li")).forEach((li) => {
+        if (
+          li.querySelector("a[href^='/']") ||
+          li.querySelector("[data-testid='dynamic-side-panel-items-show-more']")
+        ) {
+          li.remove();
+        }
+      });
+      applyRecentGroupHeadingLayout(repoList.querySelector("li[data-component='GroupHeadingWrap']"));
+    }
+
+    return wrapper;
+  }
+
+  function buildRecentSectionFromTop(topReposSection) {
+    if (isNavLayout(topReposSection)) {
+      return buildRecentSectionFromTopNav(topReposSection);
+    }
+    return buildRecentSectionFromTopSimple();
+  }
+
   function applyRecentGroupHeadingLayout(headingLi) {
     if (!headingLi) return;
     headingLi.style.setProperty("box-sizing", "border-box", "important");
@@ -219,6 +270,30 @@
     }
     const lists = Array.from(sectionRoot.querySelectorAll("ul, ol"));
     return lists[lists.length - 1] || null;
+  }
+
+  function buildRecentHeadingItemFromTop(topReposSection) {
+    const topHeadingItem = topReposSection?.querySelector("li[data-component='GroupHeadingWrap']");
+    if (!topHeadingItem) return null;
+    const cloned = topHeadingItem.cloneNode(true);
+    applyRecentGroupHeadingLayout(cloned);
+    const topHeading = topHeadingItem.querySelector("[data-component='NavList.GroupHeading']");
+    const existingHeading = cloned.querySelector("[data-component='NavList.GroupHeading']");
+    const heading = document.createElement("h3");
+    heading.setAttribute("data-component", "NavList.GroupHeading");
+    heading.className = (topHeading?.className || existingHeading?.className || "").toString();
+    const labelDiv = document.createElement("div");
+    labelDiv.textContent = "Recent repositories";
+    heading.appendChild(labelDiv);
+    if (existingHeading) {
+      existingHeading.replaceWith(heading);
+    } else {
+      cloned.prepend(heading);
+    }
+    cloned.querySelector("button")?.remove();
+    const tooltip = cloned.querySelector("[class*='Tooltip'], [popover]");
+    if (tooltip) tooltip.remove();
+    return cloned;
   }
 
   function buildAvatarUrl(owner) {
@@ -258,13 +333,53 @@
     }
   }
 
-  function renderRecentList(container, repos, topReposSection, displayCount) {
+  function createItemFromTemplate(sampleItem, repo, sampleLinkClass) {
+    if (sampleItem) {
+      const cloned = sampleItem.cloneNode(true);
+      updateTemplateItem(cloned, repo);
+      return cloned;
+    }
+    const item = document.createElement("li");
+    item.className = "prc-ActionList-ActionListItem-So4vC";
+    const link = document.createElement("a");
+    link.className = sampleLinkClass || "prc-ActionList-ActionListContent-KBb8- prc-Link-Link-9ZwDx";
+    link.href = repo.href;
+    link.setAttribute("data-size", "medium");
+    link.style.setProperty("--subitem-depth", "0");
+    const spacer = document.createElement("span");
+    spacer.className = "prc-ActionList-Spacer-4tR2m";
+    const leading = document.createElement("span");
+    leading.className = "prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS";
+    const avatar = document.createElement("img");
+    const [owner] = repo.fullName.split("/");
+    avatar.setAttribute("data-component", "Avatar");
+    avatar.className = "prc-Avatar-Avatar-0xaUi";
+    avatar.alt = `@${owner}`;
+    avatar.width = 16;
+    avatar.height = 16;
+    avatar.src = buildAvatarUrl(owner);
+    leading.appendChild(avatar);
+    const sub = document.createElement("span");
+    sub.className = "prc-ActionList-ActionListSubContent-gKsFp";
+    sub.setAttribute("data-component", "ActionList.Item--DividerContainer");
+    const label = document.createElement("span");
+    label.className = "prc-ActionList-ItemLabel-81ohH";
+    label.textContent = repo.fullName;
+    sub.appendChild(label);
+    link.appendChild(spacer);
+    link.appendChild(leading);
+    link.appendChild(sub);
+    item.appendChild(link);
+    return item;
+  }
+
+  function renderRecentListSimple(container, repos, displayCount) {
     const list = container.querySelector(LIST_SELECTOR) || findRepoListElement(container);
     if (!list) return;
-    list.innerHTML = "";
     const reposHash = `${displayCount}|${hashRepos(repos)}`;
     if (reposHash === lastRenderedHash) return;
     lastRenderedHash = reposHash;
+    list.innerHTML = "";
     if (!repos.length) {
       const empty = document.createElement("li");
       empty.textContent = "No recent repos yet";
@@ -316,7 +431,50 @@
     });
   }
 
-  function findTopReposSectionInDashboard() {
+  function renderRecentListNav(container, repos, topReposSection, displayCount) {
+    const list = container.querySelector(LIST_SELECTOR) || findRepoListElement(container);
+    if (!list) return;
+    const reposHash = `${displayCount}|${hashRepos(repos)}`;
+    if (reposHash === lastRenderedHash) return;
+    lastRenderedHash = reposHash;
+    let headingItem = list.querySelector("li[data-component='GroupHeadingWrap']");
+    if (!headingItem) {
+      headingItem = buildRecentHeadingItemFromTop(topReposSection);
+      if (headingItem) list.prepend(headingItem);
+    }
+    applyRecentGroupHeadingLayout(headingItem);
+    const sampleAnchor = topReposSection?.querySelector("a[href^='/']");
+    const sampleItem = sampleAnchor ? sampleAnchor.closest("li") : null;
+    const sampleLink = sampleItem?.querySelector("a");
+    Array.from(list.querySelectorAll("li")).forEach((li) => {
+      const hasRepoLink = !!li.querySelector("a[href^='/']");
+      const isShowMoreControl = !!li.querySelector("[data-testid='dynamic-side-panel-items-show-more']");
+      const isHeading = li.getAttribute("data-component") === "GroupHeadingWrap";
+      if ((hasRepoLink || isShowMoreControl) && !isHeading) {
+        li.remove();
+      }
+    });
+    if (!repos.length) {
+      const empty = document.createElement("li");
+      empty.className = sampleItem?.className || "mt-2";
+      empty.textContent = "No repositories visited yet.";
+      list.appendChild(empty);
+      return;
+    }
+    repos.forEach((repo) => {
+      list.appendChild(createItemFromTemplate(sampleItem, repo, sampleLink?.className));
+    });
+  }
+
+  function renderRecentList(container, repos, topReposSection, displayCount) {
+    if (isNavLayout(topReposSection)) {
+      renderRecentListNav(container, repos, topReposSection, displayCount);
+      return;
+    }
+    renderRecentListSimple(container, repos, displayCount);
+  }
+
+  function findTopReposSectionLegacy() {
     const sidebar = getSidebarUniversal();
     if (!sidebar) return null;
 
@@ -342,10 +500,8 @@
       }
     }
 
-    // return the parent container (your code expects section, not just list)
     if (!bestList) return null;
 
-    // climb up until we hit a reasonable section container
     let section = bestList;
     while (section && section.parentElement && section.parentElement.tagName !== "ASIDE") {
       section = section.parentElement;
@@ -354,21 +510,55 @@
     return section;
   }
 
+  function findNavTopReposSection(nav) {
+    const groupItems = Array.from(nav.querySelectorAll("li.prc-ActionList-Group-lMIPQ"));
+    const directMatch = groupItems.find((group) => /top repositories/i.test(group.textContent || ""));
+    if (directMatch) return directMatch;
+
+    const heading = Array.from(
+      nav.querySelectorAll("h2, h3, h4, [data-component='NavList.GroupHeading']")
+    ).find((node) => /top repositories/i.test(node.textContent || ""));
+    if (!heading) return null;
+
+    let candidate = heading.closest("li");
+    while (candidate && candidate !== nav) {
+      const repoLinks = Array.from(candidate.querySelectorAll("a[href^='/']")).filter((link) =>
+        repoFromRelativePath(link.getAttribute("href"))
+      );
+      if (repoLinks.length >= 2) return candidate;
+      candidate = candidate.parentElement?.closest("li") || null;
+    }
+
+    return null;
+  }
+
+  function findTopReposSectionInDashboard() {
+    const nav = document.querySelector(DASHBOARD_NAV_SELECTOR);
+    if (nav) {
+      const group = findNavTopReposSection(nav);
+      if (group) return group;
+    }
+    return findTopReposSectionLegacy();
+  }
+
   function ensureRecentSection(topReposSection) {
     if (!topReposSection) return null;
-
-    // already exists → reuse
-    let section = document.getElementById(SECTION_ID);
-    if (section) return section;
-
-    // create fresh
-    section = buildRecentSectionFromTop();
-
     const parent = topReposSection.parentElement;
     if (!parent) return null;
+    const navLayout = isNavLayout(topReposSection);
+    const insertBeforeNode = navLayout ? topReposSection : topReposSection.nextSibling;
 
-    // ✅ insert EXACTLY below Top Repos
-    parent.insertBefore(section, topReposSection.nextSibling);
+    let section = document.getElementById(SECTION_ID);
+    if (!section) {
+      section = buildRecentSectionFromTop(topReposSection);
+      if (!section) return null;
+      parent.insertBefore(section, insertBeforeNode);
+      return section;
+    }
+
+    if (section.parentElement !== parent || section.nextSibling !== insertBeforeNode) {
+      parent.insertBefore(section, insertBeforeNode);
+    }
 
     return section;
   }
