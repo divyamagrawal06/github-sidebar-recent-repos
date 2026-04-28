@@ -9,7 +9,7 @@
   const SECTION_ID = "recent-repos-section";
   const LIST_SELECTOR = ".recent-repos-list";
   const ENHANCE_DEBOUNCE_MS = 120;
-  const DASHBOARD_NAV_SELECTOR = 'nav[data-testid="dashboard-repositories"]';
+  const IGNORE_SELECTOR = "#recent-repos-section";
   let observer = null;
   let clickTrackingAttached = false;
   let pendingEnhanceTimer = null;
@@ -21,6 +21,31 @@
       ","
     )
   );
+
+  function getSidebarUniversal(root = document) {
+    const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
+
+    const asides = Array.from(root.querySelectorAll("aside"));
+    let bestSidebar = null;
+    let bestScore = 0;
+
+    for (const aside of asides) {
+      const repoLinks = Array.from(aside.querySelectorAll('a[href^="/"]')).filter((link) =>
+        isRepoHref(link.getAttribute("href"))
+      );
+
+      const uniqueRepos = new Set(
+        repoLinks.map((link) => link.getAttribute("href").replace(/\/$/, ""))
+      );
+
+      if (uniqueRepos.size >= 2 && uniqueRepos.size > bestScore) {
+        bestSidebar = aside;
+        bestScore = uniqueRepos.size;
+      }
+    }
+
+    return bestSidebar;
+  }
 
   function stripQueryAndHashFromPath(href) {
     if (!href) return href;
@@ -324,10 +349,40 @@
   }
 
   function findTopReposSectionInDashboard() {
-    const nav = document.querySelector(DASHBOARD_NAV_SELECTOR);
-    if (!nav) return null;
-    const groupItems = Array.from(nav.querySelectorAll("li.prc-ActionList-Group-lMIPQ"));
-    return groupItems.find((group) => /top repositories/i.test(group.textContent || "")) || null;
+    const sidebar = getSidebarUniversal();
+    if (!sidebar) return null;
+
+    const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
+
+    const lists = Array.from(sidebar.querySelectorAll("ul, ol"));
+    let bestList = null;
+    let bestScore = 0;
+
+    for (const list of lists) {
+      const repoLinks = Array.from(list.querySelectorAll('a[href^="/"]')).filter((link) =>
+        isRepoHref(link.getAttribute("href"))
+      );
+
+      const uniqueRepos = new Set(
+        repoLinks.map((link) => link.getAttribute("href").replace(/\/$/, ""))
+      );
+
+      if (uniqueRepos.size >= 2 && uniqueRepos.size > bestScore) {
+        bestList = list;
+        bestScore = uniqueRepos.size;
+      }
+    }
+
+    // return the parent container (your code expects section, not just list)
+    if (!bestList) return null;
+
+    // climb up until we hit a reasonable section container
+    let section = bestList;
+    while (section && section.parentElement && section.parentElement.tagName !== "ASIDE") {
+      section = section.parentElement;
+    }
+
+    return section;
   }
 
   function ensureRecentSection(topReposSection) {
@@ -437,9 +492,14 @@
     );
   }
 
+  console.log("🔥 enhanceSidebar running");
   async function enhanceSidebar() {
     const topReposSection = findTopReposSectionInDashboard();
-    if (!topReposSection) return;
+    console.log("TopReposSection:", topReposSection);
+    if (!topReposSection) {
+      console.log("Top section not ready yet...");
+      return;
+    }
     const recentSection = ensureRecentSection(topReposSection);
     if (!recentSection) return;
     const stored = await readAllStoredRecentRepos();
