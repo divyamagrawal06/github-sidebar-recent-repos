@@ -664,8 +664,7 @@
     const topReposSection = findTopReposSectionInDashboard();
     console.log("TopReposSection:", topReposSection);
     if (!topReposSection) {
-      setTimeout(enhanceSidebar, 300);
-      return;
+      return; // MutationObserver will re-trigger when the DOM changes
     }
     const recentSection = ensureRecentSection(topReposSection);
     if (!recentSection) return;
