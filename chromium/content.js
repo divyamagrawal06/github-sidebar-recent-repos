@@ -27,7 +27,6 @@
     const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
 
     const asides = Array.from(root.querySelectorAll("aside"))
-      .filter(el => !el.querySelector(IGNORE_SELECTOR));
     let bestSidebar = null;
     let bestScore = 0;
 
