@@ -658,14 +658,10 @@
     );
   }
 
-  console.log("🔥 enhanceSidebar running");
   async function enhanceSidebar() {
     // remove this early return completely
     const topReposSection = findTopReposSectionInDashboard();
     console.log("TopReposSection:", topReposSection);
-    if (!topReposSection) {
-      return; // MutationObserver will re-trigger when the DOM changes
-    }
     const recentSection = ensureRecentSection(topReposSection);
     if (!recentSection) return;
     const stored = await readAllStoredRecentRepos();
