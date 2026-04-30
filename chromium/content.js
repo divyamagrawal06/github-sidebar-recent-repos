@@ -185,22 +185,26 @@
     // 🔹 Heading
     const heading = document.createElement("div");
     heading.textContent = "Recent repositories";
-    heading.style.fontSize = "12px";
+    heading.style.borderBottom = "1px solid #21262d";
+    heading.style.paddingBottom = "6px";
+    heading.style.fontSize = "14px";
     heading.style.fontWeight = "600";
-    heading.style.color = "#8b949e";
-    heading.style.textTransform = "uppercase";
-    heading.style.margin = "16px 8px 8px 8px";
+    heading.style.color = "var(--fgColor-muted)"; // same as GitHub text
+    heading.style.margin = "16px 8px 5px 24px";
+    heading.style.textTransform = "none"; // 🔥 remove ALL CAPS
 
     // 🔹 List
     const list = document.createElement("ul");
     list.classList.add("recent-repos-list");
     list.style.listStyle = "none";
-    list.style.padding = "0 8px";
+    list.style.padding = "0 18px";
     list.style.margin = "0";
 
     // 🔹 Structure (ONLY ONCE)
     wrapper.appendChild(heading);
     wrapper.appendChild(list);
+    wrapper.style.marginBottom = "12px";
+    wrapper.style.marginBottom = "12px";
 
     return wrapper;
   }
@@ -419,6 +423,7 @@
       // ✨ Hover effect
       a.addEventListener("mouseenter", () => {
         a.style.background = "#21262d";
+        a.style.transition = "background 0.15s ease";
       });
       a.addEventListener("mouseleave", () => {
         a.style.background = "transparent";
@@ -546,7 +551,7 @@
     const parent = topReposSection.parentElement;
     if (!parent) return null;
     const navLayout = isNavLayout(topReposSection);
-    const insertBeforeNode = navLayout ? topReposSection : topReposSection.nextSibling;
+    const insertBeforeNode = topReposSection;
 
     let section = document.getElementById(SECTION_ID);
     if (!section) {
