@@ -403,7 +403,7 @@
       a.style.padding = "6px 8px";
       a.style.borderRadius = "6px";
       a.style.textDecoration = "none";
-      a.style.color = "#c9d1d9"; // GitHub text
+      a.style.color = "var(--fgColor-default)";
 
       // 🔥 Avatar
       const img = document.createElement("img");
