@@ -409,6 +409,7 @@
       const img = document.createElement("img");
       const owner = repo.fullName.split("/")[0];
       img.src = `https://github.com/${owner}.png?size=40`;
+      img.alt = `@${owner}`;
       img.width = 16;
       img.height = 16;
       img.style.borderRadius = "50%";
