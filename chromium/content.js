@@ -203,7 +203,6 @@
     wrapper.appendChild(heading);
     wrapper.appendChild(list);
     wrapper.style.marginBottom = "12px";
-    wrapper.style.marginBottom = "12px";
 
     return wrapper;
   }
