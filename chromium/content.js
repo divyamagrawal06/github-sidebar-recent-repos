@@ -9,7 +9,8 @@
   const SECTION_ID = "recent-repos-section";
   const LIST_SELECTOR = ".recent-repos-list";
   const ENHANCE_DEBOUNCE_MS = 120;
-  const DASHBOARD_NAV_SELECTOR = 'nav[data-testid="dashboard-repositories"]';
+  const DASHBOARD_NAV_SELECTOR = "nav[data-testid='dashboard-repositories']";
+  const IGNORE_SELECTOR = "#recent-repos-section";
   let observer = null;
   let clickTrackingAttached = false;
   let pendingEnhanceTimer = null;
@@ -21,6 +22,35 @@
       ","
     )
   );
+
+  function getSidebarUniversal(root = document) {
+    const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
+
+    const asides = Array.from(root.querySelectorAll("aside"))
+    let bestSidebar = null;
+    let bestScore = 0;
+
+    for (const aside of asides) {
+      const repoLinks = Array.from(aside.querySelectorAll('a[href^="/"]')).filter((link) =>
+        isRepoHref(link.getAttribute("href"))
+      );
+
+      const uniqueRepos = new Set(
+        repoLinks.map((link) => link.getAttribute("href").replace(/\/$/, ""))
+      );
+
+      if (uniqueRepos.size >= 2 && uniqueRepos.size > bestScore) {
+        bestSidebar = aside;
+        bestScore = uniqueRepos.size;
+      }
+    }
+
+    return bestSidebar;
+  }
+
+  function isNavLayout(topReposSection) {
+    return !!topReposSection?.closest(DASHBOARD_NAV_SELECTOR);
+  }
 
   function stripQueryAndHashFromPath(href) {
     if (!href) return href;
@@ -95,26 +125,44 @@
 
   function readAllStoredRecentRepos() {
     return new Promise((resolve) => {
-      ext.storage.local.get([STORAGE_KEY], (result) => {
-        const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
-        const valid = value.filter((item) => {
-          if (
-            !item ||
-            typeof item.fullName !== "string" ||
-            typeof item.href !== "string" ||
-            typeof item.lastSeenAt !== "number"
-          ) {
-            return false;
+      try {
+        ext.storage.local.get([STORAGE_KEY], (result) => {
+          try {
+            const value = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+
+            const valid = value.filter((item) => {
+              if (
+                !item ||
+                typeof item.fullName !== "string" ||
+                typeof item.href !== "string" ||
+                typeof item.lastSeenAt !== "number"
+              ) {
+                return false;
+              }
+              const p = repoFromRelativePath(item.href);
+              return p !== null && p.fullName === item.fullName;
+            });
+
+            const next = clampStored(valid);
+
+            if (value.length !== next.length) {
+              try {
+                ext.storage.local.set({ [STORAGE_KEY]: next });
+              } catch (e) {
+                console.warn("⚠️ Failed to write storage (context gone):", e);
+              }
+            }
+
+            resolve(next);
+          } catch (innerErr) {
+            console.warn("⚠️ Processing failed:", innerErr);
+            resolve([]); // fail safe
           }
-          const p = repoFromRelativePath(item.href);
-          return p !== null && p.fullName === item.fullName;
         });
-        const next = clampStored(valid);
-        if (value.length !== next.length) {
-          ext.storage.local.set({ [STORAGE_KEY]: next });
-        }
-        resolve(next);
-      });
+      } catch (err) {
+        console.warn("⚠️ Storage read failed (extension reloaded):", err);
+        resolve([]); // fail safe
+      }
     });
   }
 
@@ -128,7 +176,39 @@
     return repos.map((repo) => `${repo.fullName}:${repo.lastSeenAt}`).join("|");
   }
 
-  function buildRecentSectionFromTop(topReposSection) {
+  function buildRecentSectionFromTopSimple() {
+    const wrapper = document.createElement("div");
+    wrapper.id = SECTION_ID;
+    wrapper.classList.add("recent-repos-section");
+
+    // 🔹 Heading
+    const heading = document.createElement("div");
+    heading.textContent = "Recent repositories";
+    heading.style.borderBottom = "1px solid #21262d";
+    heading.style.paddingBottom = "6px";
+    heading.style.fontSize = "14px";
+    heading.style.fontWeight = "600";
+    heading.style.color = "var(--fgColor-muted)"; // same as GitHub text
+    heading.style.margin = "16px 8px 5px 24px";
+    heading.style.textTransform = "none"; // 🔥 remove ALL CAPS
+
+    // 🔹 List
+    const list = document.createElement("ul");
+    list.classList.add("recent-repos-list");
+    list.style.listStyle = "none";
+    list.style.padding = "0 18px";
+    list.style.margin = "0";
+
+    // 🔹 Structure (ONLY ONCE)
+    wrapper.appendChild(heading);
+    wrapper.appendChild(list);
+    wrapper.style.marginBottom = "12px";
+
+    return wrapper;
+  }
+
+  function buildRecentSectionFromTopNav(topReposSection) {
+    if (!topReposSection) return null;
     const wrapper = topReposSection.cloneNode(true);
     wrapper.id = SECTION_ID;
     wrapper.classList.add("recent-repos-section");
@@ -164,6 +244,13 @@
     }
 
     return wrapper;
+  }
+
+  function buildRecentSectionFromTop(topReposSection) {
+    if (isNavLayout(topReposSection)) {
+      return buildRecentSectionFromTopNav(topReposSection);
+    }
+    return buildRecentSectionFromTopSimple();
   }
 
   function applyRecentGroupHeadingLayout(headingLi) {
@@ -288,7 +375,67 @@
     return item;
   }
 
-  function renderRecentList(container, repos, topReposSection, displayCount) {
+  function renderRecentListSimple(container, repos, displayCount) {
+    const list = container.querySelector(LIST_SELECTOR) || findRepoListElement(container);
+    if (!list) return;
+    const reposHash = `${displayCount}|${hashRepos(repos)}`;
+    if (reposHash === lastRenderedHash) return;
+    lastRenderedHash = reposHash;
+    list.innerHTML = "";
+    if (!repos.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "No recent repos yet";
+      empty.style.color = "#8b949e";
+      empty.style.fontSize = "12px";
+      empty.style.padding = "4px 8px";
+      list.appendChild(empty);
+      return;
+    }
+    repos.forEach((repo) => {
+      const li = document.createElement("li");
+
+      const a = document.createElement("a");
+      a.href = repo.href;
+
+      a.style.display = "flex";
+      a.style.alignItems = "center";
+      a.style.gap = "8px";
+      a.style.padding = "6px 8px";
+      a.style.borderRadius = "6px";
+      a.style.textDecoration = "none";
+      a.style.color = "var(--fgColor-default)";
+
+      // 🔥 Avatar
+      const img = document.createElement("img");
+      const owner = repo.fullName.split("/")[0];
+      img.src = `https://github.com/${owner}.png?size=40`;
+      img.alt = `@${owner}`;
+      img.width = 16;
+      img.height = 16;
+      img.style.borderRadius = "50%";
+
+      // 🔥 Repo name
+      const span = document.createElement("span");
+      span.textContent = repo.fullName;
+      span.style.fontSize = "14px";
+
+      // ✨ Hover effect
+      a.addEventListener("mouseenter", () => {
+        a.style.background = "#21262d";
+        a.style.transition = "background 0.15s ease";
+      });
+      a.addEventListener("mouseleave", () => {
+        a.style.background = "transparent";
+      });
+
+      a.appendChild(img);
+      a.appendChild(span);
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+  }
+
+  function renderRecentListNav(container, repos, topReposSection, displayCount) {
     const list = container.querySelector(LIST_SELECTOR) || findRepoListElement(container);
     if (!list) return;
     const reposHash = `${displayCount}|${hashRepos(repos)}`;
@@ -323,26 +470,100 @@
     });
   }
 
+  function renderRecentList(container, repos, topReposSection, displayCount) {
+    if (isNavLayout(topReposSection)) {
+      renderRecentListNav(container, repos, topReposSection, displayCount);
+      return;
+    }
+    renderRecentListSimple(container, repos, displayCount);
+  }
+
+  function findTopReposSectionLegacy() {
+    const sidebar = getSidebarUniversal();
+    if (!sidebar) return null;
+
+    const isRepoHref = (href) => /^\/[^/]+\/[^/]+\/?$/.test(href || "");
+
+    const lists = Array.from(sidebar.querySelectorAll("ul, ol"));
+    let bestList = null;
+    let bestScore = 0;
+
+    for (const list of lists) {
+      if (list.closest("#recent-repos-section")) continue;
+      const repoLinks = Array.from(list.querySelectorAll('a[href^="/"]')).filter((link) =>
+        isRepoHref(link.getAttribute("href"))
+      );
+
+      const uniqueRepos = new Set(
+        repoLinks.map((link) => link.getAttribute("href").replace(/\/$/, ""))
+      );
+
+      if (uniqueRepos.size >= 2 && uniqueRepos.size > bestScore) {
+        bestList = list;
+        bestScore = uniqueRepos.size;
+      }
+    }
+
+    if (!bestList) return null;
+
+    let section = bestList;
+    while (section && section.parentElement && section.parentElement.tagName !== "ASIDE") {
+      section = section.parentElement;
+    }
+
+    return section;
+  }
+
+  function findNavTopReposSection(nav) {
+    const groupItems = Array.from(nav.querySelectorAll("li.prc-ActionList-Group-lMIPQ"));
+    const directMatch = groupItems.find((group) => /top repositories/i.test(group.textContent || ""));
+    if (directMatch) return directMatch;
+
+    const heading = Array.from(
+      nav.querySelectorAll("h2, h3, h4, [data-component='NavList.GroupHeading']")
+    ).find((node) => /top repositories/i.test(node.textContent || ""));
+    if (!heading) return null;
+
+    let candidate = heading.closest("li");
+    while (candidate && candidate !== nav) {
+      const repoLinks = Array.from(candidate.querySelectorAll("a[href^='/']")).filter((link) =>
+        repoFromRelativePath(link.getAttribute("href"))
+      );
+      if (repoLinks.length >= 2) return candidate;
+      candidate = candidate.parentElement?.closest("li") || null;
+    }
+
+    return null;
+  }
+
   function findTopReposSectionInDashboard() {
     const nav = document.querySelector(DASHBOARD_NAV_SELECTOR);
-    if (!nav) return null;
-    const groupItems = Array.from(nav.querySelectorAll("li.prc-ActionList-Group-lMIPQ"));
-    return groupItems.find((group) => /top repositories/i.test(group.textContent || "")) || null;
+    if (nav) {
+      const group = findNavTopReposSection(nav);
+      if (group) return group;
+    }
+    return findTopReposSectionLegacy();
   }
 
   function ensureRecentSection(topReposSection) {
     if (!topReposSection) return null;
     const parent = topReposSection.parentElement;
     if (!parent) return null;
+    const navLayout = isNavLayout(topReposSection);
+    const insertBeforeNode = topReposSection;
+
     let section = document.getElementById(SECTION_ID);
     if (!section) {
       section = buildRecentSectionFromTop(topReposSection);
-      parent.insertBefore(section, topReposSection);
+      if (!section) return null;
+      parent.insertBefore(section, insertBeforeNode);
       return section;
     }
-    if (section.parentElement !== parent || section.nextElementSibling !== topReposSection) {
-      parent.insertBefore(section, topReposSection);
+
+    if (section.parentElement !== parent || section.nextSibling !== insertBeforeNode) {
+      parent.insertBefore(section, insertBeforeNode);
     }
+
     return section;
   }
 
@@ -438,8 +659,9 @@
   }
 
   async function enhanceSidebar() {
+    // remove this early return completely
     const topReposSection = findTopReposSectionInDashboard();
-    if (!topReposSection) return;
+    console.log("TopReposSection:", topReposSection);
     const recentSection = ensureRecentSection(topReposSection);
     if (!recentSection) return;
     const stored = await readAllStoredRecentRepos();
@@ -471,6 +693,14 @@
   }
 
   function boot() {
+    const style = document.createElement("style");
+    style.textContent = `
+  .dashboard-sidebar .loading-context {
+    min-height: unset !important;
+    height: auto !important;
+  }
+`;
+    document.head.appendChild(style);
     attachRepoClickTracking();
     ext.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && (changes[STORAGE_KEY] || changes[DISPLAY_COUNT_KEY])) {
